@@ -238,7 +238,7 @@ class YOLOv3_Darknet53(YOLOv3):
     classes = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
                'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 
-    def __init__(self, weights, model_img_size=(416, 416), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+    def __init__(self, weights, model_img_size=(832, 832), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
         super().__init__(weights, yolo_darknet53,
                          model_img_size, confidence_thresh_default, confidence_thresh_eval)
 
