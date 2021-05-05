@@ -79,7 +79,7 @@ loop_counter = 0
 
 for image_path in image_paths:
     loop_counter += 1
-    print(str(loop_counter) + '/' + str(len(image_paths)))
+    print(str(loop_counter) + '/' + str(len(image_paths)), flush=True)
     clean_sample = open_and_detect(image_path)
     path, filename = os.path.split(image_path)
 
@@ -90,10 +90,10 @@ for image_path in image_paths:
     if untargeted.any():
         untargeted_out = pre_pro_image(untargeted)
         untargeted_out.save(os.path.join(output_untargeted, filename))
-        print('Untargeted adversarial sample ' + image_path + ' saved')
+        print('Untargeted adversarial sample ' + image_path + ' saved', flush=True)
         untargeted = None
     if vanish.any():
         vanish_out = pre_pro_image(vanish)
         vanish_out.save(os.path.join(output_vanish, filename))
-        print('Vanishing adversarial sample ' + image_path + ' saved')
+        print('Vanishing adversarial sample ' + image_path + ' saved', flush=True)
         vanish = None
