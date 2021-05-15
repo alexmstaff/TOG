@@ -243,10 +243,31 @@ class YOLOv3_Darknet53(YOLOv3):
                          model_img_size, confidence_thresh_default, confidence_thresh_eval)
 
 
-class YOLOv3_SMD(YOLOv3):
+class YOLOv3_single_1920(YOLOv3):
     classes = ['boat']
 
     def __init__(self, weights, model_img_size=(1920, 1920), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+        super().__init__(weights, yolo_darknet53, 
+        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
+class YOLOv3_single_832(YOLOv3):
+    classes = ['boat']
+
+    def __init__(self, weights, model_img_size=(832, 832), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+        super().__init__(weights, yolo_darknet53, 
+        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
+class YOLOv3_double_1920(YOLOv3):
+    classes = ['boat', 'building']
+
+    def __init__(self, weights, model_img_size=(1920, 1920), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+        super().__init__(weights, yolo_darknet53, 
+        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
+class YOLOv3_double_832(YOLOv3):
+    classes = ['boat', 'building']
+
+    def __init__(self, weights, model_img_size=(832, 832), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
         super().__init__(weights, yolo_darknet53, 
         model_img_size, confidence_thresh_default, confidence_thresh_eval)
 
