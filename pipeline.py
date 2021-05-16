@@ -11,6 +11,7 @@ from PIL import Image
 from tog.attacks import *
 import os
 from glob import glob
+import argparse
 
 eps = 8 / 255.0  # Hyperparameter: epsilon in L-inf norm
 eps_iter = 2 / 255.0  # Hyperparameter: attack learning rate
@@ -88,7 +89,7 @@ def generate_samples(source_model):
 
     for image_path in image_paths:
         loop_counter += 1
-        print(str(loop_counter) + "/" + str(len(image_paths)), flush=True)
+        print(str(loop_counter) + "/" + str(len(image_paths)) + "\t Source model: " + source_model, flush=True)
         clean_sample = open_and_detect(image_path)
         path, filename = os.path.split(image_path)
 
@@ -117,7 +118,13 @@ models = [
     "yolov3-super-hr_final.h5",
 ]
 
-for model in models:
+parser = argparse.ArgumentParser()
+parser.add_argument('model_index', type=int)
+args = parser.parse_args()
+
+if args.model_index:
+    model = models[args.model_index]
+    print("Generating samples for " + model, flush=True)
 
     K.clear_session()
 
@@ -137,3 +144,25 @@ for model in models:
         detector = YOLOv3_single_832(weights=weights)
         generate_samples(model)
     print(model + " finished generating samples", flush=True)
+
+else:
+    for model in models:
+
+        K.clear_session()
+
+        weights = "../models/" + model
+        if model == "yolov3-bb-hr_final.h5":
+            K.clear_session()
+            detector = YOLOv3_double_1920(weights=weights)
+            generate_samples("lossless-" + model)
+            K.clear_session()
+            detector = YOLOv3_double_832(weights=weights)
+            generate_samples(model)
+        else:
+            K.clear_session()
+            detector = YOLOv3_single_1920(weights=weights)
+            generate_samples("lossless-" + model)
+            K.clear_session()
+            detector = YOLOv3_single_832(weights=weights)
+            generate_samples(model)
+        print(model + " finished generating samples", flush=True)
