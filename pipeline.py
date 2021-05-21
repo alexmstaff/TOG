@@ -1,11 +1,12 @@
-from dataset_utils.preprocessing import letterbox_image_padded
+from dataset_utils.preprocessing import letterbox_image_padded, image_resize
 from keras import backend as K
 
 # from models.yolov3 import YOLOv3_Darknet53
-from models.yolov3 import YOLOv3_single_1920
+# from models.yolov3 import YOLOv3_single_1920
+# from models.yolov3 import YOLOv3_double_1920
 from models.yolov3 import YOLOv3_single_832
-from models.yolov3 import YOLOv3_double_1920
 from models.yolov3 import YOLOv3_double_832
+
 
 from PIL import Image
 from tog.attacks import *
@@ -47,7 +48,8 @@ def crop_image_only_outside(img, tol=80):
 def open_and_detect(image_path):
     fpath = image_path
     input_img = Image.open(fpath)
-    x_query, x_meta = letterbox_image_padded(input_img, size=detector.model_img_size)
+    # x_query, x_meta = letterbox_image_padded(input_img, size=detector.model_img_size)
+    x_query = image_resize(input_img, size=detector.model_img_size)
     return x_query
 
 
@@ -65,7 +67,7 @@ def pre_pro_image(image):
     if len(image.shape) == 4:
         image = image[0]
     im = image * 255
-    im = crop_image_only_outside(im)
+    # im = crop_image_only_outside(im)
     im = Image.fromarray((im).astype(np.uint8))
     return im
 
@@ -89,7 +91,14 @@ def generate_samples(source_model):
 
     for image_path in image_paths:
         loop_counter += 1
-        print(str(loop_counter) + "/" + str(len(image_paths)) + "\t Source model: " + source_model, flush=True)
+        print(
+            str(loop_counter)
+            + "/"
+            + str(len(image_paths))
+            + "\t Source model: "
+            + source_model,
+            flush=True,
+        )
         clean_sample = open_and_detect(image_path)
         path, filename = os.path.split(image_path)
 
@@ -110,16 +119,16 @@ def generate_samples(source_model):
 
 
 models = [
+    "yolov3-super-hr_final.h5",
     "yolov3-bb-hr_final.h5",
     "yolov3-boat-hr_final.h5",
     "yolov3-coco-merged-hr_final.h5",
-    "yolov3-smd-hr_final.h5",
     "yolov3-smd-merged-hr_final.h5",
-    "yolov3-super-hr_final.h5",
+    # "yolov3-smd-hr_final.h5",
 ]
 
 parser = argparse.ArgumentParser()
-parser.add_argument('model_index', type=int)
+parser.add_argument("model_index", nargs="?", type=int)
 args = parser.parse_args()
 
 if args.model_index:
@@ -130,16 +139,16 @@ if args.model_index:
 
     weights = "../models/" + model
     if model == "yolov3-bb-hr_final.h5":
-        K.clear_session()
-        detector = YOLOv3_double_1920(weights=weights)
-        generate_samples("lossless-" + model)
+        # K.clear_session()
+        # detector = YOLOv3_double_1920(weights=weights)
+        # generate_samples("lossless-" + model)
         K.clear_session()
         detector = YOLOv3_double_832(weights=weights)
         generate_samples(model)
     else:
-        K.clear_session()
-        detector = YOLOv3_single_1920(weights=weights)
-        generate_samples("lossless-" + model)
+        # K.clear_session()
+        # detector = YOLOv3_single_1920(weights=weights)
+        # generate_samples("lossless-" + model)
         K.clear_session()
         detector = YOLOv3_single_832(weights=weights)
         generate_samples(model)
@@ -152,16 +161,16 @@ else:
 
         weights = "../models/" + model
         if model == "yolov3-bb-hr_final.h5":
-            K.clear_session()
-            detector = YOLOv3_double_1920(weights=weights)
-            generate_samples("lossless-" + model)
+            # K.clear_session()
+            # detector = YOLOv3_double_1920(weights=weights)
+            # generate_samples("lossless-" + model)
             K.clear_session()
             detector = YOLOv3_double_832(weights=weights)
             generate_samples(model)
         else:
-            K.clear_session()
-            detector = YOLOv3_single_1920(weights=weights)
-            generate_samples("lossless-" + model)
+            # K.clear_session()
+            # detector = YOLOv3_single_1920(weights=weights)
+            # generate_samples("lossless-" + model)
             K.clear_session()
             detector = YOLOv3_single_832(weights=weights)
             generate_samples(model)
