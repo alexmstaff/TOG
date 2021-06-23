@@ -6,6 +6,7 @@ from keras import backend as K
 # from models.yolov3 import YOLOv3_double_1920
 from models.yolov3 import YOLOv3_single_832
 from models.yolov3 import YOLOv3_double_832
+from models.yolov3 import YOLOv3_single_416
 
 
 from PIL import Image
@@ -14,7 +15,7 @@ import os
 from glob import glob
 import argparse
 
-eps = 8 / 255.0  # Hyperparameter: epsilon in L-inf norm
+eps = 30 / 255.0  # Hyperparameter: epsilon in L-inf norm
 eps_iter = 2 / 255.0  # Hyperparameter: attack learning rate
 n_iter = 10  # Hyperparameter: number of attack iterations
 
@@ -55,12 +56,12 @@ def open_and_detect(image_path):
 
 def generate_adversarial_examples(x_query):
     x_adv_untargeted = tog_untargeted(
-        victim=detector, x_query=x_query, n_iter=n_iter, eps=eps, eps_iter=eps_iter
+        victim=detector, x_query=x_query, n_iter=n_iter, eps=eps/255, eps_iter=eps_iter
     )
-    x_adv_vanishing = tog_vanishing(
-        victim=detector, x_query=x_query, n_iter=n_iter, eps=eps, eps_iter=eps_iter
-    )
-    return x_adv_untargeted, x_adv_vanishing
+    # x_adv_vanishing = tog_vanishing(
+    #     victim=detector, x_query=x_query, n_iter=n_iter, eps=eps, eps_iter=eps_iter
+    # )
+    return x_adv_untargeted#, x_adv_vanishing
 
 
 def pre_pro_image(image):
@@ -74,9 +75,9 @@ def pre_pro_image(image):
 
 def generate_samples(source_model):
     source_model, extension = os.path.splitext(source_model)
-    output_clean = "/cluster/work/alexamst/tog/clean/" + source_model + "/"
-    output_vanish = "/cluster/work/alexamst/tog/vanish/" + source_model + "/"
-    output_untargeted = "/cluster/work/alexamst/tog/untarget/" + source_model + "/"
+    output_clean = "/cluster/work/alexamst/tog/clean/" + source_model + "-" + str(eps) + "/"
+    output_vanish = "/cluster/work/alexamst/tog/vanish/" + source_model + "-" + str(eps) + "/"
+    output_untargeted = "/cluster/work/alexamst/tog/eps_comp/" + source_model + "-" + str(eps) + "/"
 
     if not os.path.exists(output_clean):
         os.makedirs(output_clean)
@@ -102,30 +103,33 @@ def generate_samples(source_model):
         clean_sample = open_and_detect(image_path)
         path, filename = os.path.split(image_path)
 
-        clean_out = pre_pro_image(clean_sample)
-        clean_out.save(os.path.join(output_clean, filename))
+        # clean_out = pre_pro_image(clean_sample)
+        # clean_out.save(os.path.join(output_clean, filename))
 
-        untargeted, vanish = generate_adversarial_examples(clean_sample)
+        untargeted = generate_adversarial_examples(clean_sample)
         if untargeted.any():
             untargeted_out = pre_pro_image(untargeted)
             untargeted_out.save(os.path.join(output_untargeted, filename))
             print("Untargeted adversarial sample " + image_path + " saved", flush=True)
             untargeted = None
-        if vanish.any():
-            vanish_out = pre_pro_image(vanish)
-            vanish_out.save(os.path.join(output_vanish, filename))
-            print("Vanishing adversarial sample " + image_path + " saved", flush=True)
-            vanish = None
+        # if vanish.any():
+        #     vanish_out = pre_pro_image(vanish)
+        #     vanish_out.save(os.path.join(output_vanish, filename))
+        #     print("Vanishing adversarial sample " + image_path + " saved", flush=True)
+        #     vanish = None
 
 
 models = [
-    "yolov3-super-hr_final.h5",
-    "yolov3-bb-hr_final.h5",
+    # "yolov3-super-hr_final.h5",
+    # "yolov3-bb-hr_final.h5",
     "yolov3-boat-hr_final.h5",
     "yolov3-coco-merged-hr_final.h5",
-    "yolov3-smd-merged-hr_final.h5",
+    # "yolov3-smd-merged-hr_final.h5",
     # "yolov3-smd-hr_final.h5",
+    # "yolov3-cocoV2-merged-hr_best.h5",
 ]
+
+ep_list = [8, 12, 16, 20, 24, 28, 32]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("model_index", nargs="?", type=int)
@@ -155,23 +159,25 @@ if args.model_index:
     print(model + " finished generating samples", flush=True)
 
 else:
-    for model in models:
+    for linf in ep_list:
+        eps = linf
+        for model in models:
 
-        K.clear_session()
+            K.clear_session()
 
-        weights = "../models/" + model
-        if model == "yolov3-bb-hr_final.h5":
-            # K.clear_session()
-            # detector = YOLOv3_double_1920(weights=weights)
-            # generate_samples("lossless-" + model)
-            K.clear_session()
-            detector = YOLOv3_double_832(weights=weights)
-            generate_samples(model)
-        else:
-            # K.clear_session()
-            # detector = YOLOv3_single_1920(weights=weights)
-            # generate_samples("lossless-" + model)
-            K.clear_session()
-            detector = YOLOv3_single_832(weights=weights)
-            generate_samples(model)
-        print(model + " finished generating samples", flush=True)
+            weights = "../models/" + model
+            if model == "yolov3-bb-hr_final.h5":
+                # K.clear_session()
+                # detector = YOLOv3_double_1920(weights=weights)
+                # generate_samples("lossless-" + model)
+                K.clear_session()
+                detector = YOLOv3_double_832(weights=weights)
+                generate_samples(model)
+            else:
+                # K.clear_session()
+                # detector = YOLOv3_single_1920(weights=weights)
+                # generate_samples("lossless-" + model)
+                K.clear_session()
+                detector = YOLOv3_single_832(weights=weights)
+                generate_samples(model)
+            print(model + " finished generating samples", flush=True)

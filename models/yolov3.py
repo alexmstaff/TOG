@@ -17,7 +17,8 @@ class YOLOv3(object):
         self.num_classes = len(self.classes)
         self.num_anchors = len(self.anchors)
 
-        self.model = backbone(Input(shape=(None, None, 3)), self.num_anchors // 3, self.num_classes)
+        self.model = backbone(Input(shape=(None, None, 3)),
+                              self.num_anchors // 3, self.num_classes)
         self.model.load_weights(weights)
 
         self.encoded_detections = [tf.placeholder(dtype=tf.float32,
@@ -31,17 +32,21 @@ class YOLOv3(object):
 
         # Untargeted Attacks
         self.object_untargeted_loss = self.build_object_untargeted_loss()
-        self.object_untargeted_gradient = tf.gradients(ys=self.object_untargeted_loss, xs=self.model.input)[0]
+        self.object_untargeted_gradient = tf.gradients(
+            ys=self.object_untargeted_loss, xs=self.model.input)[0]
 
         # Targeted Attacks
         self.object_vanishing_loss = self.build_object_vanishing_loss()
-        self.object_vanishing_gradient = tf.gradients(ys=self.object_vanishing_loss, xs=self.model.input)[0]
+        self.object_vanishing_gradient = tf.gradients(
+            ys=self.object_vanishing_loss, xs=self.model.input)[0]
 
         self.object_fabrication_loss = self.build_object_fabrication_loss()
-        self.object_fabrication_gradient = tf.gradients(ys=self.object_fabrication_loss, xs=self.model.input)[0]
+        self.object_fabrication_gradient = tf.gradients(
+            ys=self.object_fabrication_loss, xs=self.model.input)[0]
 
         self.object_mislabeling_loss = self.build_object_mislabeling_loss()
-        self.object_mislabeling_gradient = tf.gradients(ys=self.object_mislabeling_loss, xs=self.model.input)[0]
+        self.object_mislabeling_gradient = tf.gradients(
+            ys=self.object_mislabeling_loss, xs=self.model.input)[0]
 
     def build_decoding_graph(self):
         anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
@@ -68,7 +73,8 @@ class YOLOv3(object):
             class_boxes = K.gather(class_boxes, nms_index)
             class_box_scores = K.gather(class_box_scores, nms_index)
             class_id = K.ones_like(class_box_scores) * c
-            box_confidence = K.gather(tf.boolean_mask(box_presigmoid_probs, mask[:, c]), nms_index)
+            box_confidence = K.gather(tf.boolean_mask(
+                box_presigmoid_probs, mask[:, c]), nms_index)
 
             class_ids.append(class_id)
             confidences.append(class_box_scores)
@@ -76,12 +82,15 @@ class YOLOv3(object):
             box_coordinates.append(class_boxes)
 
         class_ids = K.expand_dims(K.concatenate(class_ids, axis=0), axis=-1)
-        confidences = K.expand_dims(K.concatenate(confidences, axis=0), axis=-1)
+        confidences = K.expand_dims(
+            K.concatenate(confidences, axis=0), axis=-1)
         box_confidences = K.concatenate(box_confidences, axis=0)
         box_coordinates = K.concatenate(box_coordinates, axis=0)
 
-        ymin, xmin = tf.expand_dims(box_coordinates[..., 0], axis=-1), tf.expand_dims(box_coordinates[..., 1], axis=-1)
-        ymax, xmax = tf.expand_dims(box_coordinates[..., 2], axis=-1), tf.expand_dims(box_coordinates[..., 3], axis=-1)
+        ymin, xmin = tf.expand_dims(
+            box_coordinates[..., 0], axis=-1), tf.expand_dims(box_coordinates[..., 1], axis=-1)
+        ymax, xmax = tf.expand_dims(
+            box_coordinates[..., 2], axis=-1), tf.expand_dims(box_coordinates[..., 3], axis=-1)
         box_coordinates = tf.concat(values=[xmin, ymin, xmax, ymax], axis=-1)
 
         return tf.concat([class_ids, confidences, box_confidences, box_coordinates], axis=-1)
@@ -102,8 +111,10 @@ class YOLOv3(object):
         yolo_outputs = self.model.output
         y_true = self.encoded_labels
         anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
-        input_shape = K.cast(K.shape(yolo_outputs[0])[1:3] * 32, K.dtype(y_true[0]))
-        grid_shapes = [K.cast(K.shape(yolo_outputs[l])[1:3], K.dtype(y_true[0])) for l in range(3)]
+        input_shape = K.cast(K.shape(yolo_outputs[0])[
+                             1:3] * 32, K.dtype(y_true[0]))
+        grid_shapes = [K.cast(K.shape(yolo_outputs[l])[
+                              1:3], K.dtype(y_true[0])) for l in range(3)]
         loss = 0
         m = K.shape(yolo_outputs[0])[0]  # batch size, tensor
         mf = K.cast(m, K.dtype(yolo_outputs[0]))
@@ -118,34 +129,45 @@ class YOLOv3(object):
 
             # Darknet raw box to calculate loss.
             raw_true_xy = y_true[l][..., :2] * grid_shapes[l][::-1] - grid
-            raw_true_wh = K.log(y_true[l][..., 2:4] / self.anchors[anchor_mask[l]] * input_shape[::-1])
-            raw_true_wh = K.switch(object_mask, raw_true_wh, K.zeros_like(raw_true_wh))  # avoid log(0)=-inf
+            raw_true_wh = K.log(
+                y_true[l][..., 2:4] / self.anchors[anchor_mask[l]] * input_shape[::-1])
+            raw_true_wh = K.switch(object_mask, raw_true_wh, K.zeros_like(
+                raw_true_wh))  # avoid log(0)=-inf
             box_loss_scale = 2 - y_true[l][..., 2:3] * y_true[l][..., 3:4]
 
             # Find ignore mask, iterate over each of batch.
-            ignore_mask = tf.TensorArray(K.dtype(y_true[0]), size=1, dynamic_size=True)
+            ignore_mask = tf.TensorArray(
+                K.dtype(y_true[0]), size=1, dynamic_size=True)
             object_mask_bool = K.cast(object_mask, 'bool')
 
             def loop_body(b, ignore_mask):
-                true_box = tf.boolean_mask(y_true[l][b, ..., 0:4], object_mask_bool[b, ..., 0])
+                true_box = tf.boolean_mask(
+                    y_true[l][b, ..., 0:4], object_mask_bool[b, ..., 0])
                 iou = box_iou(pred_box[b], true_box)
                 best_iou = K.max(iou, axis=-1)
-                ignore_mask = ignore_mask.write(b, K.cast(best_iou < 0.45, K.dtype(true_box)))
+                ignore_mask = ignore_mask.write(
+                    b, K.cast(best_iou < 0.45, K.dtype(true_box)))
                 return b + 1, ignore_mask
 
-            _, ignore_mask = tf.while_loop(lambda b, *args: b < m, loop_body, [0, ignore_mask])
+            _, ignore_mask = tf.while_loop(
+                lambda b, *args: b < m, loop_body, [0, ignore_mask])
             ignore_mask = ignore_mask.stack()
             ignore_mask = K.expand_dims(ignore_mask, -1)
 
             # K.binary_cross-entropy is helpful to avoid exp overflow.
             xy_loss = object_mask * box_loss_scale * K.binary_crossentropy(raw_true_xy, raw_pred[..., 0:2],
                                                                            from_logits=True)
-            wh_loss = object_mask * box_loss_scale * 0.5 * K.square(raw_true_wh - raw_pred[..., 2:4])
+            wh_loss = object_mask * box_loss_scale * 0.5 * \
+                K.square(raw_true_wh - raw_pred[..., 2:4])
             confidence_loss = 0
-            confidence_loss += object_mask * K.binary_crossentropy(object_mask, raw_pred[..., 4:5], from_logits=True)
+            confidence_loss += object_mask * \
+                K.binary_crossentropy(
+                    object_mask, raw_pred[..., 4:5], from_logits=True)
             confidence_loss += (1 - object_mask) * K.binary_crossentropy(object_mask, raw_pred[..., 4:5],
                                                                          from_logits=True) * ignore_mask
-            class_loss = object_mask * K.binary_crossentropy(true_class_probs, raw_pred[..., 5:], from_logits=True)
+            class_loss = object_mask * \
+                K.binary_crossentropy(
+                    true_class_probs, raw_pred[..., 5:], from_logits=True)
 
             xy_loss = K.sum(xy_loss) / mf
             wh_loss = K.sum(wh_loss) / mf
@@ -155,7 +177,8 @@ class YOLOv3(object):
         return -loss
 
     def compute_object_untargeted_gradient(self, x, detections):
-        detections_ = np.asarray([detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
+        detections_ = np.asarray(
+            [detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
         encoded_labels = preprocess_true_boxes(detections_, input_shape=self.model_img_size,
                                                anchors=self.anchors, num_classes=self.num_classes)
         return K.get_session().run(self.object_untargeted_gradient,
@@ -166,13 +189,15 @@ class YOLOv3(object):
 
     def build_object_vanishing_loss(self):
         anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
-        input_shape = K.cast(K.shape(self.model.output[0])[1:3] * 32, K.dtype(self.encoded_labels[0]))
+        input_shape = K.cast(K.shape(self.model.output[0])[
+                             1:3] * 32, K.dtype(self.encoded_labels[0]))
         confidence_loss = 0
         for layer in range(3):
             object_mask = self.encoded_labels[layer][..., 4:5]
             grid, raw_pred, pred_xy, pred_wh = yolo_head(self.model.output[layer], self.anchors[anchor_mask[layer]],
                                                          self.num_classes, input_shape, calc_loss=True)
-            confidence_loss += K.sum(K.binary_crossentropy(object_mask, raw_pred[..., 4:5], from_logits=True))
+            confidence_loss += K.sum(K.binary_crossentropy(object_mask,
+                                     raw_pred[..., 4:5], from_logits=True))
         return confidence_loss
 
     def compute_object_vanishing_gradient(self, x, detections=None):
@@ -214,7 +239,8 @@ class YOLOv3(object):
         return -self.build_object_untargeted_loss()
 
     def compute_object_mislabeling_gradient(self, x, detections):
-        detections_ = np.asarray([detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
+        detections_ = np.asarray(
+            [detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
         encoded_labels = preprocess_true_boxes(detections_, input_shape=self.model_img_size,
                                                anchors=self.anchors, num_classes=self.num_classes)
         return K.get_session().run(self.object_mislabeling_gradient,
@@ -224,7 +250,8 @@ class YOLOv3(object):
                                               self.model.input: x})
 
     def compute_object_mislabeling_gradient_and_loss(self, x, detections):
-        detections_ = np.asarray([detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
+        detections_ = np.asarray(
+            [detections[:, [-4, -3, -2, -1, 0]] if len(detections) > 0 else detections])
         encoded_labels = preprocess_true_boxes(detections_, input_shape=self.model_img_size,
                                                anchors=self.anchors, num_classes=self.num_classes)
         return K.get_session().run([self.object_mislabeling_gradient, self.object_mislabeling_loss],
@@ -238,7 +265,7 @@ class YOLOv3_Darknet53(YOLOv3):
     classes = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
                'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 
-    def __init__(self, weights, model_img_size=(1920, 1920), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+    def __init__(self, weights, model_img_size=(416, 416), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
         super().__init__(weights, yolo_darknet53,
                          model_img_size, confidence_thresh_default, confidence_thresh_eval)
 
@@ -247,29 +274,41 @@ class YOLOv3_single_1920(YOLOv3):
     classes = ['boat']
 
     def __init__(self, weights, model_img_size=(1920, 1920), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
-        super().__init__(weights, yolo_darknet53, 
-        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+        super().__init__(weights, yolo_darknet53,
+                         model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
 
 class YOLOv3_single_832(YOLOv3):
     classes = ['boat']
 
     def __init__(self, weights, model_img_size=(832, 832), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
-        super().__init__(weights, yolo_darknet53, 
-        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+        super().__init__(weights, yolo_darknet53,
+                         model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
+
+class YOLOv3_single_416(YOLOv3):
+    classes = ['boat']
+
+    def __init__(self, weights, model_img_size=(416, 416), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
+        super().__init__(weights, yolo_darknet53,
+                         model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
 
 class YOLOv3_double_1920(YOLOv3):
     classes = ['boat', 'building']
 
     def __init__(self, weights, model_img_size=(1920, 1920), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
-        super().__init__(weights, yolo_darknet53, 
-        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+        super().__init__(weights, yolo_darknet53,
+                         model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
 
 class YOLOv3_double_832(YOLOv3):
     classes = ['boat', 'building']
 
     def __init__(self, weights, model_img_size=(832, 832), confidence_thresh_default=0.20, confidence_thresh_eval=0.01):
-        super().__init__(weights, yolo_darknet53, 
-        model_img_size, confidence_thresh_default, confidence_thresh_eval)
+        super().__init__(weights, yolo_darknet53,
+                         model_img_size, confidence_thresh_default, confidence_thresh_eval)
+
 
 class YOLOv3_MobileNetV1(YOLOv3):
     classes = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
